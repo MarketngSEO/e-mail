@@ -1,0 +1,6 @@
+{
+  "name": "Email Marketing Portal",
+  "description": "Simple full-stack email marketing portal to record emails and mobile phone numbers, manage subscribers, generate web embed integration codes, and send bulk HTML promotional campaigns via your Google account.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
