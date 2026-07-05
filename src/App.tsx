@@ -11,7 +11,7 @@ import {
   updateDoc
 } from "firebase/firestore";
 import { auth, db, googleSignIn, logout, initAuth } from "./lib/firebase";
-import { Contact, Campaign, ConfigInfo } from "./types";
+import { Contact, Campaign, ConfigInfo, ConnectedWebsite } from "./types";
 
 // Import components
 import LoginScreen from "./components/LoginScreen";
@@ -19,6 +19,7 @@ import ContactTable from "./components/ContactTable";
 import ContactForm from "./components/ContactForm";
 import CampaignComposer from "./components/CampaignComposer";
 import IntegrationSnippet from "./components/IntegrationSnippet";
+import WebsitesManager from "./components/WebsitesManager";
 
 // Import icons
 import {
@@ -31,20 +32,13 @@ import {
   BarChart2,
   CheckCircle2,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  Globe
 } from "lucide-react";
 
-const MOCK_CONTACTS: Contact[] = [
-  { id: "mock-1", email: "johndoe@gmail.com", phone: "+1 (555) 123-4567", source: "my-ecommerce-shop.com", timestamp: Date.now() - 3600000 * 12, status: "active", unsubscribed: false },
-  { id: "mock-2", email: "sarah.smith@yahoo.com", phone: "+1 (555) 987-6543", source: "newsletter-signup-box", timestamp: Date.now() - 3600000 * 48, status: "active", unsubscribed: false },
-  { id: "mock-3", email: "mike_marketing@hotmail.com", phone: null, source: "Manual Import", timestamp: Date.now() - 3600000 * 120, status: "active", unsubscribed: false },
-  { id: "mock-4", email: "alex.jones@outlook.com", phone: "+1 (415) 555-2671", source: "mobile-app-sync", timestamp: Date.now() - 3600000 * 150, status: "unsubscribed", unsubscribed: true },
-];
+const MOCK_CONTACTS: Contact[] = [];
 
-const MOCK_CAMPAIGNS: Campaign[] = [
-  { id: "mock-camp-1", subject: "🔥 Exclusive Deal: 20% OFF Everything inside!", content: "", sentAt: new Date(Date.now() - 3600000 * 24).toISOString(), recipientsCount: 3, successCount: 3, failedCount: 0, status: "sent" },
-  { id: "mock-camp-2", subject: "✨ Introducing Our Brand New Product!", content: "", sentAt: new Date(Date.now() - 3600000 * 72).toISOString(), recipientsCount: 4, successCount: 4, failedCount: 0, status: "sent" },
-];
+const MOCK_CAMPAIGNS: Campaign[] = [];
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -54,18 +48,17 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Core business collections states initialized with mock data
-  const [contacts, setContacts] = useState<Contact[]>(MOCK_CONTACTS);
-  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
-  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(
-    new Set(MOCK_CONTACTS.filter((c) => !c.unsubscribed).map((c) => c.id))
-  );
+  // Core business collections states
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [websites, setWebsites] = useState<ConnectedWebsite[]>([]);
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
 
   // Configuration from the Express backend
   const [config, setConfig] = useState<ConfigInfo | null>(null);
 
   // Active navigation tab
-  const [activeTab, setActiveTab] = useState<"dashboard" | "compose" | "integration">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "websites" | "compose" | "integration">("dashboard");
 
   // Fetch app config on load
   useEffect(() => {
@@ -92,9 +85,10 @@ export default function App() {
         setToken(null);
         setNeedsAuth(true);
         setLoading(false);
-        setContacts(MOCK_CONTACTS);
-        setCampaigns(MOCK_CAMPAIGNS);
-        setSelectedContactIds(new Set(MOCK_CONTACTS.filter((c) => !c.unsubscribed).map((c) => c.id)));
+        setContacts([]);
+        setCampaigns([]);
+        setWebsites([]);
+        setSelectedContactIds(new Set());
       }
     );
     return () => unsubscribe();
@@ -169,6 +163,36 @@ export default function App() {
       },
       (err) => {
         console.error("Firestore listening error for campaigns:", err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // Real-time synchronization of connected websites from Firestore (only if logged in)
+  useEffect(() => {
+    if (!user) return;
+
+    const q = query(collection(db, "websites"), orderBy("addedAt", "desc"));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const list: ConnectedWebsite[] = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          list.push({
+            id: doc.id,
+            url: data.url || "",
+            name: data.name || "",
+            addedAt: data.addedAt || Date.now(),
+            status: data.status || "connected",
+            lastSyncAt: data.lastSyncAt
+          } as ConnectedWebsite);
+        });
+        setWebsites(list);
+      },
+      (err) => {
+        console.error("Firestore listening error for websites:", err);
       }
     );
 
@@ -313,11 +337,15 @@ export default function App() {
     return await res.json();
   };
 
+  // If no websites are connected, enforce that the displayed storage/logs are blank
+  const visibleContacts = websites.length === 0 ? [] : contacts;
+  const visibleCampaigns = websites.length === 0 ? [] : campaigns;
+
   // Calculate general stats
-  const totalSubscribers = contacts.length;
-  const emailsCount = contacts.filter((c) => c.email).length;
-  const phonesCount = contacts.filter((c) => c.phone).length;
-  const sentCampaignsCount = campaigns.length;
+  const totalSubscribers = visibleContacts.length;
+  const emailsCount = visibleContacts.filter((c) => c.email).length;
+  const phonesCount = visibleContacts.filter((c) => c.phone).length;
+  const sentCampaignsCount = visibleCampaigns.length;
 
   if (loading) {
     return (
@@ -410,6 +438,20 @@ export default function App() {
             </div>
           </button>
           <button
+            onClick={() => setActiveTab("websites")}
+            className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+              activeTab === "websites"
+                ? "border-slate-900 text-slate-900 bg-slate-100/50"
+                : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+            }`}
+            id="nav-tab-websites"
+          >
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4" />
+              <span>Connect Websites</span>
+            </div>
+          </button>
+          <button
             onClick={() => setActiveTab("compose")}
             className={`py-3 px-6 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               activeTab === "compose"
@@ -487,21 +529,39 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
             {/* Left lists & actions Column */}
             <div className="lg:col-span-2 space-y-6">
-              <ContactTable
-                contacts={contacts}
-                selectedContactIds={selectedContactIds}
-                onToggleContact={handleToggleContact}
-                onToggleAllContacts={handleToggleAllContacts}
-                onDeleteContact={handleDeleteContact}
-                onToggleUnsubscribe={handleToggleUnsubscribe}
-              />
+              {websites.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-6 border border-dashed border-slate-200 rounded-lg text-center bg-white shadow-sm">
+                  <Globe className="h-10 w-10 text-slate-300 stroke-1 mb-3" />
+                  <p className="text-slate-950 text-sm font-semibold">Keep Storage Blank Until Added</p>
+                  <p className="text-slate-400 text-xs max-w-sm mt-1 mb-4 leading-relaxed">
+                    To start receiving contact data and emails, you must first connect your personal website. All storage, subscribers list, and campaign histories are blank until a website is added.
+                  </p>
+                  <button
+                    onClick={() => setActiveTab("websites")}
+                    className="bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2 px-4 rounded text-xs transition-colors cursor-pointer"
+                  >
+                    Connect Personal Website Now
+                  </button>
+                </div>
+              ) : (
+                <ContactTable
+                  contacts={visibleContacts}
+                  selectedContactIds={selectedContactIds}
+                  onToggleContact={handleToggleContact}
+                  onToggleAllContacts={handleToggleAllContacts}
+                  onDeleteContact={handleDeleteContact}
+                  onToggleUnsubscribe={handleToggleUnsubscribe}
+                />
+              )}
             </div>
 
             {/* Right sidebar Column */}
             <div className="space-y-6">
-              <ContactForm 
-                onAddContact={handleAddContact} 
-              />
+              {websites.length > 0 && (
+                <ContactForm 
+                  onAddContact={handleAddContact} 
+                />
+              )}
 
               {/* Historical Campaigns Logs */}
               <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
@@ -509,11 +569,11 @@ export default function App() {
                   <BarChart2 className="h-4 w-4 text-slate-700" />
                   Campaign History Logs
                 </h3>
-                {campaigns.length === 0 ? (
+                {visibleCampaigns.length === 0 ? (
                   <p className="text-xs text-slate-400 text-center py-6">No historical campaigns recorded yet.</p>
                 ) : (
                   <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
-                    {campaigns.map((camp) => (
+                    {visibleCampaigns.map((camp) => (
                       <div key={camp.id} className="border border-slate-100 p-3 rounded bg-slate-50/50 text-xs hover:border-slate-300 transition-colors">
                         <div className="flex justify-between font-semibold text-slate-800">
                           <span className="truncate pr-2">{camp.subject}</span>
@@ -534,9 +594,16 @@ export default function App() {
           </div>
         )}
 
+        {activeTab === "websites" && (
+          <WebsitesManager
+            websites={websites}
+            onAddContact={handleAddContact}
+          />
+        )}
+
         {activeTab === "compose" && (
           <CampaignComposer
-            selectedContacts={contacts.filter((c) => selectedContactIds.has(c.id))}
+            selectedContacts={visibleContacts.filter((c) => selectedContactIds.has(c.id))}
             onSendCampaign={handleSendCampaign}
           />
         )}

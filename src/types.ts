@@ -19,6 +19,15 @@ export interface Campaign {
   status: string;
 }
 
+export interface ConnectedWebsite {
+  id: string;
+  url: string;
+  name: string;
+  addedAt: number;
+  status: "connected" | "syncing" | "error";
+  lastSyncAt?: number;
+}
+
 export interface ConfigInfo {
   appUrl: string;
   apiKey: string;
