@@ -19,6 +19,7 @@ import ContactTable from "./components/ContactTable";
 import ContactForm from "./components/ContactForm";
 import CampaignComposer from "./components/CampaignComposer";
 import IntegrationSnippet from "./components/IntegrationSnippet";
+import UnsubscribeScreen from "./components/UnsubscribeScreen";
 
 // Import icons
 import {
@@ -47,12 +48,24 @@ const MOCK_CAMPAIGNS: Campaign[] = [
 ];
 
 export default function App() {
+  const [isUnsubscribe, setIsUnsubscribe] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [needsAuth, setNeedsAuth] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Detect Unsubscribe screen route
+  useEffect(() => {
+    if (
+      window.location.pathname === "/unsubscribe" ||
+      window.location.search.includes("unsubscribe") ||
+      window.location.search.includes("email=")
+    ) {
+      setIsUnsubscribe(true);
+    }
+  }, []);
 
   // Core business collections states initialized with mock data
   const [contacts, setContacts] = useState<Contact[]>(MOCK_CONTACTS);
@@ -66,6 +79,10 @@ export default function App() {
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState<"dashboard" | "compose" | "integration">("dashboard");
+
+  if (isUnsubscribe) {
+    return <UnsubscribeScreen />;
+  }
 
   // Fetch app config on load
   useEffect(() => {
