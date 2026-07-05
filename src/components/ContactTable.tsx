@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Search, Trash2, Mail, Smartphone, Globe, RefreshCcw, ToggleLeft, ToggleRight, CheckSquare, Square } from "lucide-react";
+import { Search, Trash2, Mail, Smartphone, Globe, CheckSquare, Square } from "lucide-react";
 import { Contact } from "../types";
 
 interface ContactTableProps {
@@ -158,7 +158,6 @@ export default function ContactTable({
                 </th>
                 <th className="p-4 font-semibold">Subscriber Contact</th>
                 <th className="p-4 font-semibold">Source / Origin</th>
-                <th className="p-4 font-semibold">Marketing Opt-In</th>
                 <th className="p-4 font-semibold">Date Collected</th>
                 <th className="p-4 font-semibold text-center w-24">Actions</th>
               </tr>
@@ -169,22 +168,19 @@ export default function ContactTable({
                 return (
                   <tr
                     key={contact.id}
-                    className={`hover:bg-slate-50/50 transition-colors ${
-                      contact.unsubscribed ? "opacity-50" : ""
-                    }`}
+                    className="hover:bg-slate-50/50 transition-colors"
                   >
                     <td className="p-4 text-center">
                       <button
                         onClick={() => onToggleContact(contact.id)}
                         className="text-slate-500 hover:text-slate-950 focus:outline-none"
                         id={`checkbox-select-${contact.id}`}
-                        disabled={contact.unsubscribed}
-                        title={contact.unsubscribed ? "Unsubscribed" : "Toggle selection"}
+                        title="Toggle selection"
                       >
                         {isSelected ? (
                           <CheckSquare className="h-4 w-4 text-slate-900" />
                         ) : (
-                          <Square className={`h-4 w-4 ${contact.unsubscribed ? "opacity-20" : ""}`} />
+                          <Square className="h-4 w-4" />
                         )}
                       </button>
                     </td>
@@ -211,32 +207,6 @@ export default function ContactTable({
                         <Globe className="h-3 w-3" />
                         {contact.source}
                       </span>
-                    </td>
-
-                    <td className="p-4">
-                      <button
-                        onClick={() => {
-                          if (isDemo && onLogin) {
-                            onLogin();
-                          } else {
-                            onToggleUnsubscribe(contact.id, !!contact.unsubscribed);
-                          }
-                        }}
-                        className="flex items-center gap-1.5 focus:outline-none text-xs font-semibold text-slate-600 hover:text-slate-950 transition-colors"
-                        id={`btn-unsubscribe-toggle-${contact.id}`}
-                      >
-                        {contact.unsubscribed ? (
-                          <>
-                            <ToggleLeft className="h-5 w-5 text-slate-400" />
-                            <span className="text-slate-400">Unsubscribed</span>
-                          </>
-                        ) : (
-                          <>
-                            <ToggleRight className="h-5 w-5 text-emerald-600" />
-                            <span className="text-emerald-700">Subscribed</span>
-                          </>
-                        )}
-                      </button>
                     </td>
 
                     <td className="p-4 text-xs text-slate-500 font-mono">

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Code2, Check, Copy, Terminal, Smartphone, Mail } from "lucide-react";
+import { Code2, Check, Copy, Terminal, Smartphone, Mail, Globe, Shield, Sparkles } from "lucide-react";
 import { ConfigInfo } from "../types";
 
 interface IntegrationSnippetProps {
@@ -10,7 +10,7 @@ interface IntegrationSnippetProps {
 
 export default function IntegrationSnippet({ config, isDemo = false, onLogin }: IntegrationSnippetProps) {
   const [copied, setCopied] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"email" | "phone" | "curl">("email");
+  const [activeTab, setActiveTab] = useState<"universal" | "manual" | "curl">("universal");
 
   const appUrl = config?.appUrl || "https://your-marketing-app.run.app";
   const apiKey = isDemo ? "marketing_key_demo_playground_connect_google" : (config?.apiKey || "marketing_key_default_99");
@@ -21,9 +21,80 @@ export default function IntegrationSnippet({ config, isDemo = false, onLogin }: 
     setTimeout(() => setCopied(null), 2000);
   };
 
-  const emailSnippet = `<!-- Add this script block to your website's login or registration flow -->
+  const universalSnippet = `<!-- 🚀 Campaigner Universal Auto-Capture Pixel -->
+<!-- Copy & Paste this script right before the closing </head> or </body> tag of your website. -->
 <script>
-  function registerSubscriberEmail(userEmail) {
+  (function() {
+    // Initialize Campaigner Tracking SDK
+    window.Campaigner = {
+      appUrl: '${appUrl}',
+      apiKey: '${apiKey}',
+      trackEmail: function(email, additionalData) {
+        if (!email || !email.includes('@')) return;
+        fetch(this.appUrl + '/api/collect', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': this.apiKey
+          },
+          body: JSON.stringify({
+            email: email,
+            phone: additionalData?.phone || null,
+            source: additionalData?.source || window.location.hostname || 'Auto-Capture Pixel'
+          })
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) { console.log('Campaigner synced subscriber:', data); })
+        .catch(function(err) { console.error('Campaigner sync failed:', err); });
+      }
+    };
+
+    // 🌟 Autocapture Engine: Automatically intercepts all login/signup form submissions
+    document.addEventListener('submit', function(event) {
+      try {
+        var form = event.target;
+        var inputs = form.getElementsByTagName('input');
+        var emailValue = '';
+        var phoneValue = '';
+
+        for (var i = 0; i < inputs.length; i++) {
+          var input = inputs[i];
+          var type = input.getAttribute('type') || '';
+          var name = input.getAttribute('name') || '';
+          var id = input.getAttribute('id') || '';
+          var val = input.value || '';
+
+          // Smart matching for email fields
+          if (type.toLowerCase() === 'email' || name.toLowerCase().indexOf('email') !== -1 || id.toLowerCase().indexOf('email') !== -1) {
+            if (val.indexOf('@') !== -1) {
+              emailValue = val.trim();
+            }
+          }
+          // Smart matching for phone numbers
+          if (type.toLowerCase() === 'tel' || name.toLowerCase().indexOf('phone') !== -1 || id.toLowerCase().indexOf('phone') !== -1) {
+            phoneValue = val.trim();
+          }
+        }
+
+        // If we captured an email, sync it automatically
+        if (emailValue) {
+          var formIdentifier = form.getAttribute('id') || form.getAttribute('class') || 'Website Form';
+          window.Campaigner.trackEmail(emailValue, {
+            phone: phoneValue || null,
+            source: window.location.hostname + ' (' + formIdentifier.split(' ')[0] + ')'
+          });
+        }
+      } catch (err) {
+        console.error('Campaigner listener error:', err);
+      }
+    });
+  })();
+</script>`;
+
+  const manualSnippet = `<!-- Campaigner Manual Tracking Hook -->
+<!-- Call this Javascript function explicitly anywhere in your login callbacks, auth states, or router -->
+<script>
+  function syncLoggedInUser(emailAddress, phoneNumber) {
     fetch('${appUrl}/api/collect', {
       method: 'POST',
       headers: {
@@ -31,143 +102,147 @@ export default function IntegrationSnippet({ config, isDemo = false, onLogin }: 
         'x-api-key': '${apiKey}'
       },
       body: JSON.stringify({
-        email: userEmail,
-        source: window.location.hostname || 'My Main Website'
+        email: emailAddress,
+        phone: phoneNumber || null,
+        source: window.location.hostname + ' (Auth State Sync)'
       })
     })
     .then(response => response.json())
-    .then(data => console.log('Subscriber registered:', data))
-    .catch(error => console.error('Registration failed:', error));
+    .then(data => console.log('Active user recorded:', data))
+    .catch(error => console.error('Failed to sync active session:', error));
   }
 
-  // Example hook: Call this whenever a user logs in successfully
-  // registerSubscriberEmail('user@example.com');
+  // Example: Hook into Firebase Auth state change or standard React login callbacks
+  // firebase.auth().onAuthStateChanged(function(user) {
+  //   if (user && user.email) {
+  //     syncLoggedInUser(user.email, user.phoneNumber);
+  //   }
+  // });
 </script>`;
 
-  const phoneSnippet = `<!-- Add this script block to collect mobile phone numbers -->
-<script>
-  function registerSubscriberPhone(mobileNumber) {
-    fetch('${appUrl}/api/collect', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': '${apiKey}'
-      },
-      body: JSON.stringify({
-        phone: mobileNumber,
-        source: window.location.hostname || 'My Mobile App'
-      })
-    })
-    .then(response => response.json())
-    .then(data => console.log('Mobile number registered:', data))
-    .catch(error => console.error('Registration failed:', error));
-  }
-
-  // Example hook: Call this when user inputs their mobile number
-  // registerSubscriberPhone('+15550199');
-</script>`;
-
-  const curlSnippet = `# Record an email address
+  const curlSnippet = `# Direct REST API POST to record user session email
 curl -X POST "${appUrl}/api/collect" \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: ${apiKey}" \\
-  -d '{"email": "customer@gmail.com", "source": "Landing Page"}'
-
-# Record a mobile number
-curl -X POST "${appUrl}/api/collect" \\
-  -H "Content-Type: application/json" \\
-  -H "x-api-key: ${apiKey}" \\
-  -d '{"phone": "+1234567890", "source": "Checkout Form"}'`;
+  -d '{
+    "email": "customer@yourdomain.com",
+    "phone": "+1234567890",
+    "source": "My Main Web Server"
+  }'`;
 
   return (
     <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
       <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-        <h3 className="text-lg font-medium text-slate-900 flex items-center gap-2">
-          <Code2 className="h-5 w-5 text-slate-700" />
-          Collect Data from Your Other Websites
-        </h3>
-        <p className="mt-1 text-sm text-slate-500">
-          Embed these lightweight scripts into your main websites or mobile apps to automatically record subscriber emails and phone numbers.
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 bg-slate-900 text-white rounded">
+            <Code2 className="h-4.5 w-4.5" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">
+            Extract & Sync Logged-In User Emails
+          </h3>
+        </div>
+        <p className="mt-1.5 text-xs text-slate-500 max-w-2xl leading-relaxed">
+          Embed these lightweight codes into your other personal websites. It captures user inputs or state sessions automatically and uploads them to your marketing contacts dashboard in real-time.
         </p>
       </div>
 
-      <div className="flex border-b border-slate-100">
+      <div className="flex border-b border-slate-100 bg-slate-50/50">
         <button
-          onClick={() => setActiveTab("email")}
-          className={`flex-1 py-3 px-4 text-center border-b-2 text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-            activeTab === "email"
+          onClick={() => setActiveTab("universal")}
+          className={`flex-1 py-3 px-4 text-center border-b-2 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === "universal"
               ? "border-slate-900 text-slate-900 bg-white"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
           }`}
-          id="tab-email-integration"
+          id="tab-universal-integration"
         >
-          <Mail className="h-4 w-4" />
-          Email Sync
+          <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+          Universal Auto-Capture (Recommended)
         </button>
         <button
-          onClick={() => setActiveTab("phone")}
-          className={`flex-1 py-3 px-4 text-center border-b-2 text-sm font-medium flex items-center justify-center gap-2 transition-all ${
-            activeTab === "phone"
+          onClick={() => setActiveTab("manual")}
+          className={`flex-1 py-3 px-4 text-center border-b-2 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+            activeTab === "manual"
               ? "border-slate-900 text-slate-900 bg-white"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
           }`}
-          id="tab-phone-integration"
+          id="tab-manual-integration"
         >
-          <Smartphone className="h-4 w-4" />
-          Mobile Number Sync
+          <Mail className="h-3.5 w-3.5" />
+          Auth Hooks / JS API
         </button>
         <button
           onClick={() => setActiveTab("curl")}
-          className={`flex-1 py-3 px-4 text-center border-b-2 text-sm font-medium flex items-center justify-center gap-2 transition-all ${
+          className={`flex-1 py-3 px-4 text-center border-b-2 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${
             activeTab === "curl"
               ? "border-slate-900 text-slate-900 bg-white"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50/50"
           }`}
           id="tab-curl-integration"
         >
-          <Terminal className="h-4 w-4" />
-          REST / cURL API
+          <Terminal className="h-3.5 w-3.5" />
+          Backend API / cURL
         </button>
       </div>
 
       <div className="p-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-mono font-medium text-slate-400 uppercase tracking-wider">
-            {activeTab === "email" && "JavaScript Email Collection Script"}
-            {activeTab === "phone" && "JavaScript Phone Number Collection Script"}
-            {activeTab === "curl" && "Direct REST API Examples"}
+          <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
+            {activeTab === "universal" && "🚀 Universal Forms Auto-Capture Script (No Code modification needed)"}
+            {activeTab === "manual" && "⚙️ Custom Login Callback Function"}
+            {activeTab === "curl" && "🔌 Backend API Example"}
           </span>
           <button
             onClick={() => {
-              const text = activeTab === "email" ? emailSnippet : activeTab === "phone" ? phoneSnippet : curlSnippet;
+              const text = activeTab === "universal" ? universalSnippet : activeTab === "manual" ? manualSnippet : curlSnippet;
               handleCopy(text, activeTab);
             }}
-            className="text-xs text-slate-500 hover:text-slate-950 flex items-center gap-1.5 font-medium px-2.5 py-1.5 border border-slate-200 rounded hover:bg-slate-50 transition-all"
+            className="text-[11px] text-slate-600 hover:text-slate-950 flex items-center gap-1.5 font-medium px-2.5 py-1.5 border border-slate-200 rounded hover:bg-slate-50 transition-all bg-white shadow-sm cursor-pointer"
             id={`copy-btn-${activeTab}`}
           >
             {copied === activeTab ? (
               <>
-                <Check className="h-3.5 w-3.5 text-green-600" />
-                <span className="text-green-600">Copied!</span>
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+                <span className="text-emerald-600 font-bold">Copied!</span>
               </>
             ) : (
               <>
                 <Copy className="h-3.5 w-3.5" />
-                <span>Copy Code</span>
+                <span>Copy Snippet</span>
               </>
             )}
           </button>
         </div>
 
         <div className="relative">
-          <pre className="p-4 bg-slate-900 text-slate-100 rounded-lg overflow-x-auto font-mono text-xs leading-relaxed max-h-96">
+          <pre className="p-4 bg-slate-950 text-slate-100 rounded-lg overflow-x-auto font-mono text-[11px] leading-relaxed max-h-96 border border-slate-800">
             <code>
-              {activeTab === "email" && emailSnippet}
-              {activeTab === "phone" && phoneSnippet}
+              {activeTab === "universal" && universalSnippet}
+              {activeTab === "manual" && manualSnippet}
               {activeTab === "curl" && curlSnippet}
             </code>
           </pre>
         </div>
+
+        {activeTab === "universal" && (
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-2">
+            <h4 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+              <Globe className="h-3.5 w-3.5 text-slate-600" />
+              How Universal Auto-Capture secures 100% of user emails:
+            </h4>
+            <ul className="text-xs text-slate-500 space-y-1 pl-4 list-decimal leading-relaxed">
+              <li>
+                <strong>No framework changes required</strong>: It listens to standard browser submit events globally. Whether your target website is built with plain HTML, React, WordPress, Webflow, or Shopify, it intercepts successfully submitted forms automatically.
+              </li>
+              <li>
+                <strong>Smart Input Scanning</strong>: The script intelligently scans the submit event, extracting values from fields with type <code className="bg-slate-200 px-1 rounded text-slate-800 font-mono text-[10px]">email</code> or name containing "email" or "phone".
+              </li>
+              <li>
+                <strong>Zero Delay</strong>: Collected emails are uploaded straight back to your Campaigner contacts in the background seamlessly.
+              </li>
+            </ul>
+          </div>
+        )}
 
         {isDemo && (
           <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -192,10 +267,13 @@ curl -X POST "${appUrl}/api/collect" \\
         )}
 
         <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
-          <h4 className="text-sm font-medium text-slate-800 mb-1">Integration Setup Info:</h4>
+          <h4 className="text-xs font-bold text-slate-800 mb-1.5 flex items-center gap-1.5">
+            <Shield className="h-3.5 w-3.5 text-slate-600" />
+            Security & CORS:
+          </h4>
           <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
             <li>
-              Send a HTTP <strong>POST</strong> to{" "}
+              Send an HTTP <strong>POST</strong> to{" "}
               <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800 font-mono text-[11px]">
                 {appUrl}/api/collect
               </code>
@@ -211,7 +289,7 @@ curl -X POST "${appUrl}/api/collect" \\
               </code>{" "}
               parameter in the request JSON payload).
             </li>
-            <li>Cross-Origin Resource Sharing (CORS) is enabled so it works seamlessly on any browser site.</li>
+            <li>Cross-Origin Resource Sharing (CORS) is fully enabled, ensuring simple browser integrations function securely.</li>
           </ul>
         </div>
       </div>
