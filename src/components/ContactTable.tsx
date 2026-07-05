@@ -9,6 +9,8 @@ interface ContactTableProps {
   onToggleAllContacts: (checked: boolean) => void;
   onDeleteContact: (id: string) => Promise<void>;
   onToggleUnsubscribe: (id: string, currentlyUnsubscribed: boolean) => Promise<void>;
+  isDemo?: boolean;
+  onLogin?: () => void;
 }
 
 export default function ContactTable({
@@ -17,7 +19,9 @@ export default function ContactTable({
   onToggleContact,
   onToggleAllContacts,
   onDeleteContact,
-  onToggleUnsubscribe
+  onToggleUnsubscribe,
+  isDemo = false,
+  onLogin
 }: ContactTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "emails" | "phones">("all");
@@ -211,7 +215,13 @@ export default function ContactTable({
 
                     <td className="p-4">
                       <button
-                        onClick={() => onToggleUnsubscribe(contact.id, !!contact.unsubscribed)}
+                        onClick={() => {
+                          if (isDemo && onLogin) {
+                            onLogin();
+                          } else {
+                            onToggleUnsubscribe(contact.id, !!contact.unsubscribed);
+                          }
+                        }}
                         className="flex items-center gap-1.5 focus:outline-none text-xs font-semibold text-slate-600 hover:text-slate-950 transition-colors"
                         id={`btn-unsubscribe-toggle-${contact.id}`}
                       >
@@ -235,7 +245,13 @@ export default function ContactTable({
 
                     <td className="p-4 text-center">
                       <button
-                        onClick={() => onDeleteContact(contact.id)}
+                        onClick={() => {
+                          if (isDemo && onLogin) {
+                            onLogin();
+                          } else {
+                            onDeleteContact(contact.id);
+                          }
+                        }}
                         className="text-slate-400 hover:text-red-700 p-1.5 rounded hover:bg-red-50 transition-all focus:outline-none"
                         id={`btn-delete-contact-${contact.id}`}
                         title="Delete subscriber completely"

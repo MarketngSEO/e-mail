@@ -4,14 +4,16 @@ import { ConfigInfo } from "../types";
 
 interface IntegrationSnippetProps {
   config: ConfigInfo | null;
+  isDemo?: boolean;
+  onLogin?: () => void;
 }
 
-export default function IntegrationSnippet({ config }: IntegrationSnippetProps) {
+export default function IntegrationSnippet({ config, isDemo = false, onLogin }: IntegrationSnippetProps) {
   const [copied, setCopied] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"email" | "phone" | "curl">("email");
 
   const appUrl = config?.appUrl || "https://your-marketing-app.run.app";
-  const apiKey = config?.apiKey || "marketing_key_default_99";
+  const apiKey = isDemo ? "marketing_key_demo_playground_connect_google" : (config?.apiKey || "marketing_key_default_99");
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -166,6 +168,28 @@ curl -X POST "${appUrl}/api/collect" \\
             </code>
           </pre>
         </div>
+
+        {isDemo && (
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="text-xs text-slate-700">
+              <span className="font-semibold text-slate-900 text-sm block mb-0.5">🔑 Live Integration Required</span>
+              These snippets are currently using dummy configuration placeholders. Please connect your Google account to get your personal workspace API Key and active collector endpoint.
+            </div>
+            {onLogin && (
+              <button
+                type="button"
+                onClick={onLogin}
+                className="shrink-0 bg-slate-900 text-white hover:bg-slate-800 transition-colors text-xs font-semibold py-1.5 px-3 rounded cursor-pointer flex items-center gap-1.5 shadow-sm"
+              >
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+                <span>Connect Google</span>
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-lg">
           <h4 className="text-sm font-medium text-slate-800 mb-1">Integration Setup Info:</h4>

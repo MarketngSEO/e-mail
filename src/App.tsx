@@ -34,6 +34,18 @@ import {
   HelpCircle
 } from "lucide-react";
 
+const MOCK_CONTACTS: Contact[] = [
+  { id: "mock-1", email: "johndoe@gmail.com", phone: "+1 (555) 123-4567", source: "my-ecommerce-shop.com", timestamp: Date.now() - 3600000 * 12, status: "active", unsubscribed: false },
+  { id: "mock-2", email: "sarah.smith@yahoo.com", phone: "+1 (555) 987-6543", source: "newsletter-signup-box", timestamp: Date.now() - 3600000 * 48, status: "active", unsubscribed: false },
+  { id: "mock-3", email: "mike_marketing@hotmail.com", phone: null, source: "Manual Import", timestamp: Date.now() - 3600000 * 120, status: "active", unsubscribed: false },
+  { id: "mock-4", email: "alex.jones@outlook.com", phone: "+1 (415) 555-2671", source: "mobile-app-sync", timestamp: Date.now() - 3600000 * 150, status: "unsubscribed", unsubscribed: true },
+];
+
+const MOCK_CAMPAIGNS: Campaign[] = [
+  { id: "mock-camp-1", subject: "🔥 Exclusive Deal: 20% OFF Everything inside!", content: "", sentAt: new Date(Date.now() - 3600000 * 24).toISOString(), recipientsCount: 3, successCount: 3, failedCount: 0, status: "sent" },
+  { id: "mock-camp-2", subject: "✨ Introducing Our Brand New Product!", content: "", sentAt: new Date(Date.now() - 3600000 * 72).toISOString(), recipientsCount: 4, successCount: 4, failedCount: 0, status: "sent" },
+];
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -42,10 +54,12 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Core business collections states
-  const [contacts, setContacts] = useState<Contact[]>([]);
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  // Core business collections states initialized with mock data
+  const [contacts, setContacts] = useState<Contact[]>(MOCK_CONTACTS);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(MOCK_CAMPAIGNS);
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(
+    new Set(MOCK_CONTACTS.filter((c) => !c.unsubscribed).map((c) => c.id))
+  );
 
   // Configuration from the Express backend
   const [config, setConfig] = useState<ConfigInfo | null>(null);
@@ -78,6 +92,9 @@ export default function App() {
         setToken(null);
         setNeedsAuth(true);
         setLoading(false);
+        setContacts(MOCK_CONTACTS);
+        setCampaigns(MOCK_CAMPAIGNS);
+        setSelectedContactIds(new Set(MOCK_CONTACTS.filter((c) => !c.unsubscribed).map((c) => c.id)));
       }
     );
     return () => unsubscribe();
@@ -313,9 +330,7 @@ export default function App() {
     );
   }
 
-  if (needsAuth || !user) {
-    return <LoginScreen onLogin={handleLogin} isLoggingIn={isLoggingIn} error={error} />;
-  }
+  // No early return for unsigned users anymore, we let them see the website first!
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans flex flex-col">
@@ -333,39 +348,122 @@ export default function App() {
               </div>
             </div>
 
-            {/* Profile Sign-out Details */}
-            <div className="flex items-center space-x-4">
-              <div className="hidden sm:block text-right">
-                <div className="text-xs font-semibold">{user.displayName || "Marketing Manager"}</div>
-                <div className="text-[11px] text-slate-400 font-mono">{user.email}</div>
-              </div>
-              {user.photoURL ? (
-                <img
-                  src={user.photoURL}
-                  alt={user.displayName || "Manager Avatar"}
-                  className="h-8 w-8 rounded-full border border-slate-700"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase">
-                  {(user.displayName || "M").charAt(0)}
-                </div>
-              )}
-              <button
-                onClick={handleLogout}
-                className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
-                id="header-logout-btn"
-                title="Sign Out"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
+             {/* Profile Sign-out Details or Google Login Button */}
+             <div className="flex items-center space-x-4">
+               {user ? (
+                 <>
+                   <div className="hidden sm:block text-right">
+                     <div className="text-xs font-semibold">{user.displayName || "Marketing Manager"}</div>
+                     <div className="text-[11px] text-slate-400 font-mono">{user.email}</div>
+                   </div>
+                   {user.photoURL ? (
+                     <img
+                       src={user.photoURL}
+                       alt={user.displayName || "Manager Avatar"}
+                       className="h-8 w-8 rounded-full border border-slate-700"
+                       referrerPolicy="no-referrer"
+                     />
+                   ) : (
+                     <div className="h-8 w-8 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-white uppercase">
+                       {(user.displayName || "M").charAt(0)}
+                     </div>
+                   )}
+                   <button
+                     onClick={handleLogout}
+                     className="p-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
+                     id="header-logout-btn"
+                     title="Sign Out"
+                   >
+                     <LogOut className="h-4 w-4" />
+                   </button>
+                 </>
+               ) : (
+                 <button
+                   onClick={handleLogin}
+                   disabled={isLoggingIn}
+                   className="flex items-center space-x-2 bg-white hover:bg-slate-100 text-slate-900 font-semibold px-4 py-2 rounded text-sm transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                   id="header-login-btn"
+                 >
+                   <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
+                     <path
+                       fill="#4285F4"
+                       d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.61a5.66 5.66 0 0 1-2.45 3.71v3.08h3.95c2.31-2.13 3.63-5.27 3.63-8.64z"
+                     />
+                     <path
+                       fill="#34A853"
+                       d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.95-3.08c-1.1.74-2.5 1.18-3.98 1.18-3.06 0-5.64-2.07-6.57-4.85H1.4v3.18C3.38 21.35 7.42 24 12 24z"
+                     />
+                     <path
+                       fill="#FBBC05"
+                       d="M5.43 14.34a7.14 7.14 0 0 1 0-4.59V6.57H1.4a11.96 11.96 0 0 0 0 10.95l4.03-3.18z"
+                     />
+                     <path
+                       fill="#EA4335"
+                       d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.93 1.19 15.24 0 12 0 7.42 0 3.38 2.65 1.4 6.57l4.03 3.18c.93-2.78 3.51-4.85 6.57-4.85z"
+                     />
+                   </svg>
+                   <span>{isLoggingIn ? "Signing in..." : "Sign in with Google"}</span>
+                 </button>
+               )}
+             </div>
           </div>
         </div>
       </header>
 
       {/* Main Core View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        {/* Guest mode warning banner */}
+        {!user && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 bg-amber-100 text-amber-800 rounded mt-0.5">
+                <AlertCircle className="h-5 w-5 animate-pulse" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-amber-900 text-sm">Guest Mode Playground</h4>
+                <p className="text-xs text-amber-800 mt-0.5">
+                  You are currently viewing Campaigner in <strong>Guest Mode</strong>. To record real emails, sync subscribers automatically across separate domains, and launch marketing campaigns via your business Gmail, please connect your Google account.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogin}
+              disabled={isLoggingIn}
+              className="shrink-0 bg-slate-900 text-white hover:bg-slate-800 transition-all text-xs font-semibold py-2 px-4 rounded cursor-pointer shadow flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24">
+                <path
+                  fill="white"
+                  d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.61a5.66 5.66 0 0 1-2.45 3.71v3.08h3.95c2.31-2.13 3.63-5.27 3.63-8.64z"
+                />
+                <path
+                  fill="white"
+                  d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.95-3.08c-1.1.74-2.5 1.18-3.98 1.18-3.06 0-5.64-2.07-6.57-4.85H1.4v3.18C3.38 21.35 7.42 24 12 24z"
+                />
+                <path
+                  fill="white"
+                  d="M5.43 14.34a7.14 7.14 0 0 1 0-4.59V6.57H1.4a11.96 11.96 0 0 0 0 10.95l4.03-3.18z"
+                />
+                <path
+                  fill="white"
+                  d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.93 1.19 15.24 0 12 0 7.42 0 3.38 2.65 1.4 6.57l4.03 3.18c.93-2.78 3.51-4.85 6.57-4.85z"
+                />
+              </svg>
+              <span>{isLoggingIn ? "Connecting..." : "Connect Google Account"}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Auth Error Notification */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg flex items-center justify-between text-xs font-semibold">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-slate-400 hover:text-red-950 font-bold ml-4">
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Navigation Tabs Area */}
         <div className="flex border-b border-slate-200">
           <button
@@ -467,12 +565,18 @@ export default function App() {
                 onToggleAllContacts={handleToggleAllContacts}
                 onDeleteContact={handleDeleteContact}
                 onToggleUnsubscribe={handleToggleUnsubscribe}
+                isDemo={!user}
+                onLogin={handleLogin}
               />
             </div>
 
             {/* Right sidebar Column */}
             <div className="space-y-6">
-              <ContactForm onAddContact={handleAddContact} />
+              <ContactForm 
+                onAddContact={handleAddContact} 
+                isDemo={!user}
+                onLogin={handleLogin}
+              />
 
               {/* Historical Campaigns Logs */}
               <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
@@ -509,11 +613,17 @@ export default function App() {
           <CampaignComposer
             selectedContacts={contacts.filter((c) => selectedContactIds.has(c.id))}
             onSendCampaign={handleSendCampaign}
+            isDemo={!user}
+            onLogin={handleLogin}
           />
         )}
 
         {activeTab === "integration" && (
-          <IntegrationSnippet config={config} />
+          <IntegrationSnippet 
+            config={config} 
+            isDemo={!user}
+            onLogin={handleLogin}
+          />
         )}
       </main>
     </div>

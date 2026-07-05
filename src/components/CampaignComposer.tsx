@@ -10,6 +10,8 @@ interface CampaignComposerProps {
     failed: number;
     details: Array<{ email: string; success: boolean; error?: string }>;
   }>;
+  isDemo?: boolean;
+  onLogin?: () => void;
 }
 
 // Inline ready-to-use, gorgeous email marketing templates with NO gradients
@@ -114,7 +116,12 @@ const TEMPLATES = [
   }
 ];
 
-export default function CampaignComposer({ selectedContacts, onSendCampaign }: CampaignComposerProps) {
+export default function CampaignComposer({
+  selectedContacts,
+  onSendCampaign,
+  isDemo = false,
+  onLogin
+}: CampaignComposerProps) {
   const [subject, setSubject] = useState("");
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
@@ -135,6 +142,10 @@ export default function CampaignComposer({ selectedContacts, onSendCampaign }: C
   };
 
   const handleSend = async () => {
+    if (isDemo && onLogin) {
+      onLogin();
+      return;
+    }
     if (!subject.trim()) {
       alert("Please enter an email subject line.");
       return;
@@ -266,14 +277,26 @@ export default function CampaignComposer({ selectedContacts, onSendCampaign }: C
             <button
               type="button"
               onClick={handleSend}
-              disabled={sending || eligibleContacts.length === 0}
-              className="px-5 py-2 bg-slate-900 text-white rounded-md text-sm font-semibold hover:bg-slate-800 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-50 cursor-pointer"
+              disabled={sending || (eligibleContacts.length === 0 && !isDemo)}
+              className={`px-5 py-2 rounded-md text-sm font-semibold transition-all flex items-center gap-2 shadow-sm cursor-pointer ${
+                isDemo
+                  ? "bg-slate-100 text-slate-700 border border-slate-300 hover:bg-slate-200"
+                  : "bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-50"
+              }`}
               id="send-campaign-submit-btn"
             >
               {sending ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>Sending Mail...</span>
+                </>
+              ) : isDemo ? (
+                <>
+                  <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span>Sign in with Google to Send</span>
                 </>
               ) : (
                 <>
